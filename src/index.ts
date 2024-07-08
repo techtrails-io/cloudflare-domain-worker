@@ -31,11 +31,17 @@ export default {
 
 		// Inject Plausible for everything else
 		router.all('*', async () => {
+			const url = new URL(request.url);
 			const response = await fetch(request.url, request);
 
-			return new HTMLRewriter()
-				.on('head', new ElementHandler())
-				.transform(response);
+			// Do not inject analytics for Techtrails admin pages
+			if (!url.pathname.startsWith('/publish')) {
+				return new HTMLRewriter()
+					.on('head', new ElementHandler())
+					.transform(response);
+			} else {
+				return response;
+			}
 		});
 
 		return router.handle(request);
