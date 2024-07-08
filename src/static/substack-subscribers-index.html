@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Substack proxy</title>
+	</head>
+	<body>
+		<script>
+			(function () {
+				var allowedOrigins = [
+					'https://speakerine.app'
+				];
+
+				var hostWindow = window.top;
+				var hostOrigin = '*';
+
+				window.addEventListener('message', async function (event) {
+
+					// Only accept our own events from known origins
+					if (!allowedOrigins.includes(event.origin)) return;
+					if (!event.data.type || !event.data.type.startsWith('substack-subscribers:')) return;
+
+					switch (event.data.type) {
+						// Host acknowledgement of our init message
+						case 'substack-subscribers:ack':
+							hostWindow = event.source
+							hostOrigin = event.origin
+							break;
+
+						case 'substack-subscribers:subscribe':
+							var email = event.data.email;
+
+							// Send subscription to Substack
+							var response = await fetch('https://techtrails.io/api/v1/free', {
+								method: 'POST',
+								headers: {
+									'content-type': 'application/json',
+									'cache-control': 'max-age=0',
+									'accept-language': 'en-US,en;q=0.9',
+									'accept': '*/*',
+								},
+								body: JSON.stringify({
+									'email': email,
+									'additional_referring_pub_ids': '',
+									'referring_pub_id': '',
+									'source': 'cover_page',
+									'referral_code': '',
+									'current_referrer': '',
+									'current_url': 'https://techtrails.io/',
+									'first_referrer': '',
+									'first_url': 'https://techtrails.io/',
+								}),
+							});
+
+							if (response.ok) {
+								// Signal to host that subscription is successful
+								hostWindow.postMessage({type: 'substack-subscribers:subscribed', email: email}, hostOrigin);
+							} else {
+								// Signal to host that subscription has failed
+								hostWindow.postMessage({type: 'substack-subscribers:error', body: response.text()}, hostOrigin);
+							}
+							break;
+					}
+				});
+
+				// Send a message to our host to signal our presence
+				hostWindow.postMessage({type: 'substack-subscribers:init'}, hostOrigin);
+			})()
+		</script>
+
+
+	</body>
+</html>
